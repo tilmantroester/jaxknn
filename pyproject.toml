@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jaxknn"
+authors = [{name = "Tilman Tröster", email = "tilman@troester.space"}]
+version = "0.0.1"
+requires-python = ">=3.10"
+dependencies = ["jax>=0.5.1"]
+description = "KNN queries for JAX"
+readme = "README.md"
+
+[project.optional-dependencies]
+gpu = ["cudakdtree_jax_binding"]
+test = ["pytest", "absl-py"]
