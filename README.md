@@ -41,3 +41,12 @@ cuda_idx = knn_cuda(
     points=points, k=k, box_size=box_size,
 )
 ```
+Due to the template-based architecture of `cudaKDTree`, there is only a finite set of supported combinations of `k` and data dimensionality:
+
+`n_dim=2`:
+- `k` = 8, 9, 16, 25, 61, 128
+
+`n_dim=3`:
+- `k` = 8, 16, 27, 33, 100, 128
+
+Other combinations need to be explicitly compiled into `cudakdtree_jax_binding`.
