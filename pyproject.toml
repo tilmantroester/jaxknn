@@ -12,5 +12,5 @@ description = "KNN queries for JAX"
 readme = "README.md"
 
 [project.optional-dependencies]
-gpu = ["cudakdtree_jax_binding"]
+gpu = ["cudakdtree_jax_binding @ git+https://github.com/tilmantroester/cudakdtree_jax_binding"]
 test = ["pytest", "absl-py"]
