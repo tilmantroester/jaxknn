@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+
 import jax
 import jax.numpy as jnp
 
@@ -22,10 +24,17 @@ def toy_2d_point_set():
 
 
 def scipy_knn(points, queries, k, box_size, max_radius):
+    kdtree = scipy.spatial.KDTree(points, boxsize=box_size)
     if queries is None:
         queries = points
-    kdtree = scipy.spatial.KDTree(points, boxsize=box_size)
-    _, scipy_idx = kdtree.query(queries, k=k, distance_upper_bound=max_radius)
+    if isinstance(max_radius, Iterable):
+        scipy_idx = []
+        for query, r in zip(points, max_radius):
+            _, idx = kdtree.query(query, k=k, distance_upper_bound=r)
+            scipy_idx.append(idx)
+        scipy_idx = np.asarray(scipy_idx)
+    else:
+        _, scipy_idx = kdtree.query(queries, k=k, distance_upper_bound=max_radius)
     return scipy_idx
 
 

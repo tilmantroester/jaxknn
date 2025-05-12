@@ -42,6 +42,7 @@ def jax_callback_get_k_nearest_neighbor_idx(points, k, queries=None,
 
 
 def knn_scipy(points, k, queries=None, max_radius=np.inf, box_size=None, **kwargs):
+    assert isinstance(max_radius, float), "Only scalar max_radius are supported."
     _, idx = jax_callback_get_k_nearest_neighbor_idx(
         points=points, k=k, queries=queries,
         distance_upper_bound=max_radius, boxsize=box_size, **kwargs
