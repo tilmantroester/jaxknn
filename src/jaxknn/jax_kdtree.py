@@ -4,7 +4,12 @@ from collections import namedtuple
 import jax
 import jax.numpy as jnp
 
-# Blind implementation
+import numpy as np
+
+# Following the conventions from the papers Wald 2022, "A Stack-Free Traversal
+# Algorithm for Left-Balanced k-d Trees" (arXiv:2210.12859) and Wald 2022,
+# "GPU-friendly, Parallel, and (Almost-)In-Place Construction of Left-Balanced
+# k-d Tree" (arXiv:2211.00120)
 
 
 def F(l):
@@ -106,9 +111,10 @@ def sort(tags, points, order, l, k):
 
 
 @jax.profiler.annotate_function
-def build_tree(points, l_max):
+def build_tree(points):
     N, k = points.shape
     L = n_levels(N)
+    l_max = int(np.log2(points.shape[0]))
 
     tags = jnp.zeros(N, dtype=jnp.int32)
     order = jnp.arange(N)
@@ -681,9 +687,9 @@ def knn_traverse(points, queries, k, loop_mode,
     return knn_distances_sq, knn_indices
 
 
-@partial(jax.jit, static_argnames=["k", "l_max"])
-def knn_jax(points, k, l_max):
-    nodes, points = build_tree(points, l_max)
+@partial(jax.jit, static_argnames=["k"])
+def knn_jax(points, k):
+    nodes, points = build_tree(points)
     return knn_traverse_map(points, k)
 
 

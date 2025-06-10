@@ -42,12 +42,12 @@ def knn_cuda(points, k, queries=None, max_radius=np.inf, box_size=None,
         Indices of the neighbors. Shape `(queries.shape[0], k)`.
     """
 
-    if isinstance(max_radius, Iterable):
-        max_radii = jnp.asarray(max_radius)
-        global_max_radius = np.inf
-    else:
+    if jnp.isscalar(max_radius):
         max_radii = None
         global_max_radius = max_radius
+    else:
+        max_radii = jnp.asarray(max_radius)
+        global_max_radius = np.inf        
     
     assert isinstance(global_max_radius, float), "global_max_radius needs to be a scalar float."
 
