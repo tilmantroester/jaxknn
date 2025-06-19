@@ -1,25 +1,49 @@
 from functools import partial
-
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 
-def _check_knn_1d_args(points, k, queries, box_size):
+def _validate_knn_1d_args(points, k, queries, box_size):
     if k < 1:
-        raise ValueError("k must be at least 1")
-    if points.ndim != 1:
-        raise ValueError("points must be a 1D array")
-    if queries.ndim != 1:
-        raise ValueError("queries must be a 1D array")
-    if points.shape[0] < k:
-        raise ValueError("points must have at least k elements")
-    if queries.shape[0] < 1:
-        raise ValueError("queries must have at least one element")
+        raise ValueError(f"k must be at least 1, got {k}")
+    if points.ndim == 2:
+        if points.shape[1] != 1:
+            raise ValueError(f"points must be a 1D array or a 2D array with shape (N, 1), got {points.shape}")
+    elif points.ndim != 1:
+        raise ValueError(f"points must be a 1D array or a 2D array with shape (N, 1), got {points.ndim}D")
+    if queries.ndim == 2:
+        if queries.shape[1] != 1:
+            raise ValueError(f"queries must be a 1D array or a 2D array with shape (N, 1), got {queries.shape}")
+    elif queries.ndim != 1:
+        raise ValueError(f"queries must be a 1D array or a 2D array with shape (N, 1), got {queries.ndim}D")
+    if points.ndim == 2:
+        if points.shape[0] < k:
+            raise ValueError(f"points must have at least k elements, got {points.shape[0]}")
+    else:
+        if points.shape[0] < k:
+            raise ValueError(f"points must have at least k elements, got {points.shape[0]}")
+    if queries.ndim == 2:
+        if queries.shape[0] < 1:
+            raise ValueError(f"queries must have at least one element, got {queries.shape[0]}")
+    else:
+        if queries.shape[0] < 1:
+            raise ValueError(f"queries must have at least one element, got {queries.shape[0]}")
     if k > points.shape[0]:
         raise ValueError("k cannot be greater than the number of points")
-    
+
+    if isinstance(box_size, (list, tuple, np.ndarray, jnp.ndarray)):
+        if len(box_size) != 1:
+            raise ValueError("box_size must be a scalar or a 1-element container")
+        box_size = box_size[0]
+
     if box_size is not None and box_size <= 0:
         raise ValueError("box_size must be positive if provided")
+    
+    points = points.reshape(-1)  # Ensure points is 1D
+    queries = queries.reshape(-1)  # Ensure queries is 1D
+
+    return points, queries, box_size
 
 
 def _knn_1d_bruteforce(points, k, queries=None, box_size=None):
@@ -33,14 +57,14 @@ def _knn_1d_bruteforce(points, k, queries=None, box_size=None):
     Returns:
         Indices of the k nearest neighbors for each query point.
     """
+
     if queries is None:
         queries = points
-    _check_knn_1d_args(points, k, queries, box_size)
-    
+    points, queries, box_size = _validate_knn_1d_args(points, k, queries, box_size)
+
     d = jnp.abs(points[None, :] - queries[:, None])
     if box_size is not None:
         d = jnp.minimum(d, box_size - d)
-
     d, idx = jax.lax.top_k(-d, k)
     return idx
 
@@ -56,17 +80,16 @@ def _knn_1d_sorting(points, k, queries=None, box_size=None):
     Returns:
         Indices of the k nearest neighbors for each query point.
     """
+
     if queries is None:
         queries = points
     
-    _check_knn_1d_args(points, k, queries, box_size)
+    points, queries, box_size = _validate_knn_1d_args(points, k, queries, box_size)
+
     if 2*k + 1 > points.shape[0]:
-        raise ValueError("2*k + 1 cannot be greater than the number of points")
-
-    sort_idx = jnp.argsort(points)
-
-    sorted_points = points[sort_idx]
-
+        raise ValueError(f"2*k + 1 must be less than or equal to the number of points, got {2*k + 1} > {points.shape[0]}")
+    # Sort points and keep track of original indices
+    sorted_points, sort_idx = jax.lax.sort_key_val(points, jnp.arange(points.shape[0]))
     # Need to map back to unsorted order
     query_idx = jnp.searchsorted(sorted_points, queries)
 
@@ -100,8 +123,8 @@ def _knn_1d_sorting(points, k, queries=None, box_size=None):
     return idx
 
 
-partial(jax.jit, static_argnames=["k", "bruteforce"])
-def knn_1d(points, k, queries=None, bruteforce=False, box_size=None):
+partial(jax.jit, static_argnames=["k", "bruteforce", "box_size"])
+def knn_1d(points, k, queries=None, bruteforce=False, box_size=None, max_radius=None):
     """
     Find the k nearest neighbors in 1D.
     Args:
@@ -110,6 +133,7 @@ def knn_1d(points, k, queries=None, bruteforce=False, box_size=None):
         queries: 1D array of query points. If None, use points as queries.
         bruteforce: If True, use brute force method. Otherwise, use sorting method. For small datasets (about <10k), brute force is faster.
         box_size: Size of the periodic box. If None, no periodic boundary is assumed.
+        max_radius: Maximum radius to consider for neighbors. Not used in this implementation.
     Returns:
         Indices of the k nearest neighbors for each query point.
     """
